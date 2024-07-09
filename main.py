@@ -63,27 +63,25 @@ def process_text(text):
 
 # 1. データローダーの作成
 class VQADataset(torch.utils.data.Dataset):
-    def __init__(self, df_path, image_dir, transform=None, answer=True,question=True):
-        self.transform = transform  # 画像の前処理
-        self.image_dir = image_dir  # 画像ファイルのディレクトリ
-        self.df = pandas.read_json(df_path)  # 画像ファイルのパス，question, answerを持つDataFrame
+    def __init__(self, df_path, image_dir, transform=None, answer=True):
+        self.transform = transform
+        self.image_dir = image_dir
+        self.df = pandas.read_json(df_path)
         self.answer = answer
-        self.question = question
 
-        # question / answerの辞書を作成
         self.question2idx = {}
         self.answer2idx = {}
         self.idx2question = {}
         self.idx2answer = {}
 
-       # 質問文に含まれる単語を辞書に追加
+        # 質問文に含まれる単語を辞書に追加（前処理を適用）
         for question in self.df["question"]:
-            word = process_text(question)
-            words = word.split(" ")
+            processed_question = process_text(question)  # 前処理を適用
+            words = processed_question.split()
             for word in words:
                 if word not in self.question2idx:
                     self.question2idx[word] = len(self.question2idx)
-        self.idx2question = {v: k for k, v in self.question2idx.items()}  # 逆変換用の辞書(question)
+        self.idx2question = {v: k for k, v in self.question2idx.items()}
 
         if self.answer:
             # 回答に含まれる単語を辞書に追加
@@ -93,7 +91,7 @@ class VQADataset(torch.utils.data.Dataset):
                     word = process_text(word)
                     if word not in self.answer2idx:
                         self.answer2idx[word] = len(self.answer2idx)
-            self.idx2answer = {v: k for k, v in self.answer2idx.items()}  # 逆変換用の辞書(answer)
+            self.idx2answer = {v: k for k, v in self.answer2idx.items()}
 
     def update_dict(self, dataset):
         """
@@ -131,6 +129,10 @@ class VQADataset(torch.utils.data.Dataset):
         """
         image = Image.open(f"{self.image_dir}/{self.df['image'][idx]}")
         image = self.transform(image)
+
+        # 質問文に前処理を適用
+        processed_question = process_text(self.df["question"][idx])
+        
         question = np.zeros(len(self.idx2question) + 1)  # 未知語用の要素を追加
         question_words = self.df["question"][idx].split(" ")
         for word in question_words:
